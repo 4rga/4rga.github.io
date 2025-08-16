@@ -2,43 +2,83 @@
 <title>Related Posts</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-  html,body{margin:0;background:transparent;font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  html,body{margin:0;background:transparent;color:#111;font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
   .wrap{padding:8px 10px}
   .rel-item{display:flex;gap:10px;margin:10px 0}
   .rel-thumb img{display:block;border-radius:4px;width:120px;height:80px;object-fit:cover}
-  .rel-title{line-height:1.35;text-decoration:none}
+  .rel-meta{flex:1 1 auto;min-width:0}
+  .rel-title{display:block;line-height:1.35;text-decoration:none;color:inherit;font-weight:600}
+  .rel-snippet{font-size:13px;color:#666;line-height:1.4;margin-top:4px}
 </style>
+
 <div class="wrap" id="wrap"><div>Memuat artikel…</div></div>
+
 <script>
 (function(){
+  // Ambil query string
   function qs(k){return new URL(location.href).searchParams.get(k)||""}
-  var blog = (qs("blog")||"").replace(/\/+$/,'') + "/";
-  var label = (qs("label")||"").trim();
-  var max  = parseInt(qs("max")||"6",10);
-  if(!blog || !label){ document.getElementById('wrap').innerHTML="<div>Param blog/label kosong.</div>"; return; }
+  var blog    = (qs("blog")||"").replace(/\/+$/,'') + "/";
+  var label   = (qs("label")||"").trim();
+  var max     = Math.max(1, parseInt(qs("max")||"6",10));
+  var current = (qs("current")||"").trim().replace(/\/+$/,''); // optional: url artikel sekarang
 
-  // JSONP untuk hindari CORS: alt=json-in-script&callback=relCb
-  var feedUrl = blog + "feeds/posts/summary/-/" + encodeURIComponent(label) + "?alt=json-in-script&max-results=" + encodeURIComponent(max) + "&callback=relCb";
+  if(!blog || !label){
+    document.getElementById('wrap').innerHTML = "<div>Param blog/label kosong.</div>";
+    return;
+  }
+
+  // JSONP untuk hindari CORS
+  var feedUrl = blog + "feeds/posts/summary/-/" + encodeURIComponent(label)
+              + "?alt=json-in-script&max-results=" + encodeURIComponent(max+1) // +1 untuk jaga-jaga jika item saat ini terambil
+              + "&callback=relCb";
+
+  // helper
+  function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;")}
+  function stripTags(s){return String(s||"").replace(/<[^>]*>/g,"")}
+  function truncate(s, n){
+    s = s.trim();
+    if(s.length<=n) return s;
+    var cut = s.slice(0,n);
+    var sp = cut.lastIndexOf(" ");
+    return (sp>50?cut.slice(0,sp):cut) + "…";
+  }
 
   window.relCb = function(data){
     var wrap = document.getElementById('wrap');
     var entries = data && data.feed && data.feed.entry ? data.feed.entry : [];
     if(!entries.length){ wrap.innerHTML = "<div>Tidak ada artikel terkait.</div>"; return; }
 
-    function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;")}
-    // Ambil URL artikel (rel=alternate)
-    function getLink(e){var a=(e.link||[]).find(l=>l.rel==="alternate"); return a?a.href:"#";}
-    function getThumb(e){var t=e["media$thumbnail"]&&e["media$thumbnail"].url; return t||"https://2.bp.blogspot.com/-ex3V86fj4dQ/UrCQQa4cLsI/AAAAAAAAFdA/j2FCTmGOrog/s160/no-thumbnail.png";}
+    function getLink(e){
+      var a=(e.link||[]).find(function(l){return l.rel==="alternate"});
+      return a ? a.href : "#";
+    }
+    function getThumb(e){
+      var t=e["media$thumbnail"]&&e["media$thumbnail"].url;
+      return t || "https://2.bp.blogspot.com/-ex3V86fj4dQ/UrCQQa4cLsI/AAAAAAAAFdA/j2FCTmGOrog/s160/no-thumbnail.png";
+    }
 
-    var html = entries.map(function(it){
+    // Filter artikel yang sama dengan halaman sekarang (jika param current dikirim)
+    var list = entries.filter(function(it){
+      var link = getLink(it).replace(/\/+$/,'');
+      return !current || link !== current;
+    }).slice(0, max);
+
+    if(!list.length){ wrap.innerHTML = "<div>Tidak ada artikel terkait.</div>"; return; }
+
+    var html = list.map(function(it){
       var link = esc(getLink(it));
       var ttl  = esc(it.title && it.title.$t);
       var th   = esc(getThumb(it));
+      var sum  = it.summary && it.summary.$t ? truncate(stripTags(it.summary.$t), 120) : "";
       return '<article class="rel-item">'
            +   '<a class="rel-thumb" href="'+link+'" target="_blank" rel="noopener"><img src="'+th+'" alt="'+ttl+'"></a>'
-           +   '<div class="rel-meta"><a class="rel-title" href="'+link+'" target="_blank" rel="noopener">'+ttl+'</a></div>'
+           +   '<div class="rel-meta">'
+           +     '<a class="rel-title" href="'+link+'" target="_blank" rel="noopener">'+ttl+'</a>'
+           +     (sum ? '<div class="rel-snippet">'+esc(sum)+'</div>' : '')
+           +   '</div>'
            + '</article>';
     }).join("");
+
     wrap.innerHTML = html;
   };
 
