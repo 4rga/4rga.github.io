@@ -1,26 +1,26 @@
 <!doctype html><meta charset="utf-8">
-<title>Related Posts</title>
+<title>Related Posts (Random)</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
   html,body{margin:0;background:transparent;color:#111;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
 
-  /* Tanpa frame luar: wrap transparan & tanpa border/padding */
+  /* Tanpa frame luar: biar terlihat “full” */
   .wrap{padding:0;background:transparent;border:0}
 
   /* Judul */
   .wrap h2{margin:0 0 12px;font-size:18px;font-weight:700;color:#4285f4}
 
-  /* Grid “full” */
+  /* Grid */
   .grid{display:grid;grid-template-columns:1fr;gap:12px}
   @media (min-width:480px){.grid{grid-template-columns:1fr 1fr}}
   @media (min-width:760px){.grid{grid-template-columns:1fr 1fr 1fr}}
 
-  /* Kartu bersih, minim dekorasi */
+  /* Kartu */
   .card{display:flex;flex-direction:column;border-radius:10px;overflow:hidden;background:#fff;
         box-shadow:0 1px 2px rgba(0,0,0,.04);transition:transform .18s ease,box-shadow .18s ease}
   .card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)}
 
-  /* Thumbnail */
+  /* Thumbnail 16:9 dan tajam */
   .thumb{position:relative;aspect-ratio:16/9;background:#f2f3f5}
   .thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 
@@ -38,22 +38,25 @@
 
 <script>
 (function(){
+  // Ambil query param
   function qs(k){return new URL(location.href).searchParams.get(k)||""}
   var blog    = (qs("blog")||"").replace(/\/+$/,'') + "/";
   var label   = (qs("label")||"").trim();
-  var max     = Math.max(1, parseInt(qs("max")||"6",10));
   var current = (qs("current")||"").trim().replace(/\/+$/,'');
+  // batas ambil dari feed: besar supaya “semua” tercakup
+  var FEED_LIMIT = 9999;
 
   if(!blog || !label){
     document.getElementById('wrap').innerHTML = "<h2>Artikel Terkait</h2><div>Param blog/label kosong.</div>";
     return;
   }
 
+  // Ambil summary feed berdasar label. alt=json-in-script untuk JSONP
   var feedUrl = blog + "feeds/posts/summary/-/" + encodeURIComponent(label)
-              + "?alt=json-in-script&max-results=" + encodeURIComponent(max+1)
+              + "?alt=json-in-script&max-results=" + FEED_LIMIT
               + "&callback=relCb";
 
-  function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/<//g,"&lt;").replace(/"/g,"&quot;")}
+  function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\"/g,"&quot;")}
   function stripTags(s){return String(s||"").replace(/<[^>]*>/g,"")}
   function truncate(s, n){
     s = s.trim();
@@ -68,20 +71,31 @@
     var entries = data && data.feed && data.feed.entry ? data.feed.entry : [];
     if(!entries.length){ wrap.innerHTML = "<h2>Artikel Terkait</h2><div>Tidak ada artikel terkait.</div>"; return; }
 
-    function getLink(e){ var a=(e.link||[]).find(l=>l.rel==="alternate"); return a?a.href:"#"; }
+    function getLink(e){
+      var a = (e.link||[]).find(l=>l.rel==="alternate");
+      return a ? a.href : "#";
+    }
     function getThumb(e){
-      var t=e["media$thumbnail"]&&e["media$thumbnail"].url;
-      if (t) { t = t.replace(/\/s\d+(-c)?\//, "/s600/"); }   // gambar tajam
+      var t = e["media$thumbnail"] && e["media$thumbnail"].url;
+      if (t) { t = t.replace(/\/s\d+(-c)?\//, "/s600/"); } // paksa resolusi besar agar tajam
       return t || "https://2.bp.blogspot.com/-ex3V86fj4dQ/UrCQQa4cLsI/AAAAAAAAFdA/j2FCTmGOrog/s160/no-thumbnail.png";
     }
 
+    // Filter: buang current post
     var list = entries.filter(function(it){
       var link = getLink(it).replace(/\/+$/,'');
       return !current || link !== current;
-    }).slice(0, max);
+    });
+
+    // ACak urutan (Fisher–Yates)
+    for (let i = list.length - 1; i > 0; i--) {
+      let j = Math.floor(Math.random() * (i + 1));
+      [list[i], list[j]] = [list[j], list[i]];
+    }
 
     if(!list.length){ wrap.innerHTML = "<h2>Artikel Terkait</h2><div>Tidak ada artikel terkait.</div>"; return; }
 
+    // Render SEMUA item (sesuai tinggi iframe-nya di AMP)
     var html = '<h2>Artikel Terkait</h2><div class="grid">' + list.map(function(it){
       var link = esc(getLink(it));
       var ttl  = esc(it.title && it.title.$t);
