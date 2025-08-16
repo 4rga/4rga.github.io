@@ -2,40 +2,29 @@
 <title>Related Posts</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-  /* Transparan supaya menyatu dengan container di AMP */
   html,body{margin:0;background:transparent;color:#111;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
   .wrap{padding:6px 8px}
 
-  /* Grid responsif */
   .grid{display:grid;grid-template-columns:1fr;gap:12px}
   @media (min-width:480px){.grid{grid-template-columns:1fr 1fr}}
   @media (min-width:760px){.grid{grid-template-columns:1fr 1fr 1fr}}
 
-  /* Kartu */
   .card{display:flex;flex-direction:column;border:1px solid rgba(0,0,0,.08);
         border-radius:10px;overflow:hidden;background:rgba(255,255,255,.98);
         box-shadow:0 1px 2px rgba(0,0,0,.04);transition:transform .18s ease,box-shadow .18s ease}
   .card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)}
 
-  /* Media (16:9) */
   .thumb{position:relative;aspect-ratio:16/9;background:#f2f3f5}
   .thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 
-  /* Konten */
   .meta{padding:10px 12px}
   .title{display:block;font-weight:700;line-height:1.35;text-decoration:none;color:inherit}
   .title:hover{text-decoration:underline}
   .snippet{margin-top:6px;font-size:13px;color:#666;line-height:1.45}
 
-  /* Clamp teks biar rapi */
-  .title, .snippet{display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden}
+  .title,.snippet{display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden}
   .title{-webkit-line-clamp:2}
   .snippet{-webkit-line-clamp:3}
-
-  /* Tweak dark container (kalau dibungkus background gelap) */
-  @media (prefers-color-scheme:dark){
-    .card{background:rgba(255,255,255,.96)}
-  }
 </style>
 
 <div class="wrap" id="wrap"><div>Memuat artikel…</div></div>
@@ -46,14 +35,13 @@
   var blog    = (qs("blog")||"").replace(/\/+$/,'') + "/";
   var label   = (qs("label")||"").trim();
   var max     = Math.max(1, parseInt(qs("max")||"6",10));
-  var current = (qs("current")||"").trim().replace(/\/+$/,''); // optional, url artikel saat ini
+  var current = (qs("current")||"").trim().replace(/\/+$/,''); 
 
   if(!blog || !label){
     document.getElementById('wrap').innerHTML = "<div>Param blog/label kosong.</div>";
     return;
   }
 
-  // JSONP agar lolos CORS dari halaman statis GitHub Pages
   var feedUrl = blog + "feeds/posts/summary/-/" + encodeURIComponent(label)
               + "?alt=json-in-script&max-results=" + encodeURIComponent(max+1)
               + "&callback=relCb";
@@ -76,10 +64,13 @@
     function getLink(e){ var a=(e.link||[]).find(l=>l.rel==="alternate"); return a?a.href:"#"; }
     function getThumb(e){
       var t=e["media$thumbnail"]&&e["media$thumbnail"].url;
+      if (t) {
+        // paksa ambil resolusi lebih tinggi biar tidak pecah
+        t = t.replace(/\/s\d+(-c)?\//, "/s600/");
+      }
       return t || "https://2.bp.blogspot.com/-ex3V86fj4dQ/UrCQQa4cLsI/AAAAAAAAFdA/j2FCTmGOrog/s160/no-thumbnail.png";
     }
 
-    // Hindari menampilkan artikel yang sedang dibuka (jika param current dipasang)
     var list = entries.filter(function(it){
       var link = getLink(it).replace(/\/+$/,'');
       return !current || link !== current;
