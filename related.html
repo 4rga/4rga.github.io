@@ -1,0 +1,51 @@
+<!doctype html><meta charset="utf-8">
+<title>Related Posts</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{color-scheme:light dark}
+  body{margin:0;font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  .wrap{padding:8px 10px}
+  .rel-item{display:flex;gap:10px;margin:10px 0}
+  .rel-thumb img{display:block;border-radius:4px;width:120px;height:80px;object-fit:cover}
+  .rel-title{line-height:1.35;text-decoration:none}
+</style>
+<div class="wrap" id="wrap"><div>Memuat artikel…</div></div>
+<script>
+(function(){
+  function qs(k){return new URL(location.href).searchParams.get(k)||""}
+  var blog = (qs("blog")||"").replace(/\/+$/,'') + "/";
+  var label = (qs("label")||"").trim();
+  var max  = parseInt(qs("max")||"6",10);
+  if(!blog || !label){ document.getElementById('wrap').innerHTML="<div>Param blog/label kosong.</div>"; return; }
+
+  // JSONP untuk hindari CORS: alt=json-in-script&callback=relCb
+  var feedUrl = blog + "feeds/posts/summary/-/" + encodeURIComponent(label) + "?alt=json-in-script&max-results=" + encodeURIComponent(max) + "&callback=relCb";
+
+  window.relCb = function(data){
+    var wrap = document.getElementById('wrap');
+    var entries = data && data.feed && data.feed.entry ? data.feed.entry : [];
+    if(!entries.length){ wrap.innerHTML = "<div>Tidak ada artikel terkait.</div>"; return; }
+
+    function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;")}
+    // Ambil URL artikel (rel=alternate)
+    function getLink(e){var a=(e.link||[]).find(l=>l.rel==="alternate"); return a?a.href:"#";}
+    function getThumb(e){var t=e["media$thumbnail"]&&e["media$thumbnail"].url; return t||"https://2.bp.blogspot.com/-ex3V86fj4dQ/UrCQQa4cLsI/AAAAAAAAFdA/j2FCTmGOrog/s160/no-thumbnail.png";}
+
+    var html = entries.map(function(it){
+      var link = esc(getLink(it));
+      var ttl  = esc(it.title && it.title.$t);
+      var th   = esc(getThumb(it));
+      return '<article class="rel-item">'
+           +   '<a class="rel-thumb" href="'+link+'" target="_blank" rel="noopener"><img src="'+th+'" alt="'+ttl+'"></a>'
+           +   '<div class="rel-meta"><a class="rel-title" href="'+link+'" target="_blank" rel="noopener">'+ttl+'</a></div>'
+           + '</article>';
+    }).join("");
+    wrap.innerHTML = html;
+  };
+
+  var s = document.createElement('script');
+  s.src = feedUrl;
+  s.onerror = function(){ document.getElementById('wrap').innerHTML = "<div>Gagal memuat feed.</div>"; };
+  document.head.appendChild(s);
+})();
+</script>
