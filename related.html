@@ -12,9 +12,9 @@
   /* Bungkus seluruh section */
   .wrap{
     padding:16px 14px;
-    background:#f9f9fc;         /* background abu terang */
+    background:rgba(66,133,244,.08);   /* biru aksen lembut */
     border-radius:12px;
-    border:1px solid rgba(0,0,0,.06);
+    border:1px solid rgba(66,133,244,.2);
   }
 
   /* Judul section */
@@ -22,7 +22,7 @@
     margin:0 0 14px;
     font-size:18px;
     font-weight:700;
-    color:#333;
+    color:#4285f4;     /* judul biru */
     text-align:left;
   }
 
@@ -53,7 +53,7 @@
   /* Meta */
   .meta{padding:10px 12px}
   .title{display:block;font-weight:700;line-height:1.35;text-decoration:none;color:#111}
-  .title:hover{text-decoration:underline}
+  .title:hover{color:#4285f4}
   .snippet{margin-top:6px;font-size:13px;color:#666;line-height:1.45}
 
   /* Clamp teks */
@@ -99,7 +99,7 @@
     function getLink(e){ var a=(e.link||[]).find(l=>l.rel==="alternate"); return a?a.href:"#"; }
     function getThumb(e){
       var t=e["media$thumbnail"]&&e["media$thumbnail"].url;
-      if (t) { t = t.replace(/\/s\d+(-c)?\//, "/s600/"); } // paksa resolusi besar
+      if (t) { t = t.replace(/\/s\d+(-c)?\//, "/s600/"); }
       return t || "https://2.bp.blogspot.com/-ex3V86fj4dQ/UrCQQa4cLsI/AAAAAAAAFdA/j2FCTmGOrog/s160/no-thumbnail.png";
     }
 
