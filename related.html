@@ -2,37 +2,62 @@
 <title>Related Posts</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-  html,body{margin:0;background:transparent;color:#111;font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
-  .wrap{padding:8px 10px}
-  .rel-item{display:flex;gap:10px;margin:10px 0}
-  .rel-thumb img{display:block;border-radius:4px;width:120px;height:80px;object-fit:cover}
-  .rel-meta{flex:1 1 auto;min-width:0}
-  .rel-title{display:block;line-height:1.35;text-decoration:none;color:inherit;font-weight:600}
-  .rel-snippet{font-size:13px;color:#666;line-height:1.4;margin-top:4px}
+  /* Transparan supaya menyatu dengan container di AMP */
+  html,body{margin:0;background:transparent;color:#111;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  .wrap{padding:6px 8px}
+
+  /* Grid responsif */
+  .grid{display:grid;grid-template-columns:1fr;gap:12px}
+  @media (min-width:480px){.grid{grid-template-columns:1fr 1fr}}
+  @media (min-width:760px){.grid{grid-template-columns:1fr 1fr 1fr}}
+
+  /* Kartu */
+  .card{display:flex;flex-direction:column;border:1px solid rgba(0,0,0,.08);
+        border-radius:10px;overflow:hidden;background:rgba(255,255,255,.98);
+        box-shadow:0 1px 2px rgba(0,0,0,.04);transition:transform .18s ease,box-shadow .18s ease}
+  .card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)}
+
+  /* Media (16:9) */
+  .thumb{position:relative;aspect-ratio:16/9;background:#f2f3f5}
+  .thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+
+  /* Konten */
+  .meta{padding:10px 12px}
+  .title{display:block;font-weight:700;line-height:1.35;text-decoration:none;color:inherit}
+  .title:hover{text-decoration:underline}
+  .snippet{margin-top:6px;font-size:13px;color:#666;line-height:1.45}
+
+  /* Clamp teks biar rapi */
+  .title, .snippet{display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden}
+  .title{-webkit-line-clamp:2}
+  .snippet{-webkit-line-clamp:3}
+
+  /* Tweak dark container (kalau dibungkus background gelap) */
+  @media (prefers-color-scheme:dark){
+    .card{background:rgba(255,255,255,.96)}
+  }
 </style>
 
 <div class="wrap" id="wrap"><div>Memuat artikel…</div></div>
 
 <script>
 (function(){
-  // Ambil query string
   function qs(k){return new URL(location.href).searchParams.get(k)||""}
   var blog    = (qs("blog")||"").replace(/\/+$/,'') + "/";
   var label   = (qs("label")||"").trim();
   var max     = Math.max(1, parseInt(qs("max")||"6",10));
-  var current = (qs("current")||"").trim().replace(/\/+$/,''); // optional: url artikel sekarang
+  var current = (qs("current")||"").trim().replace(/\/+$/,''); // optional, url artikel saat ini
 
   if(!blog || !label){
     document.getElementById('wrap').innerHTML = "<div>Param blog/label kosong.</div>";
     return;
   }
 
-  // JSONP untuk hindari CORS
+  // JSONP agar lolos CORS dari halaman statis GitHub Pages
   var feedUrl = blog + "feeds/posts/summary/-/" + encodeURIComponent(label)
-              + "?alt=json-in-script&max-results=" + encodeURIComponent(max+1) // +1 untuk jaga-jaga jika item saat ini terambil
+              + "?alt=json-in-script&max-results=" + encodeURIComponent(max+1)
               + "&callback=relCb";
 
-  // helper
   function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;")}
   function stripTags(s){return String(s||"").replace(/<[^>]*>/g,"")}
   function truncate(s, n){
@@ -48,16 +73,13 @@
     var entries = data && data.feed && data.feed.entry ? data.feed.entry : [];
     if(!entries.length){ wrap.innerHTML = "<div>Tidak ada artikel terkait.</div>"; return; }
 
-    function getLink(e){
-      var a=(e.link||[]).find(function(l){return l.rel==="alternate"});
-      return a ? a.href : "#";
-    }
+    function getLink(e){ var a=(e.link||[]).find(l=>l.rel==="alternate"); return a?a.href:"#"; }
     function getThumb(e){
       var t=e["media$thumbnail"]&&e["media$thumbnail"].url;
       return t || "https://2.bp.blogspot.com/-ex3V86fj4dQ/UrCQQa4cLsI/AAAAAAAAFdA/j2FCTmGOrog/s160/no-thumbnail.png";
     }
 
-    // Filter artikel yang sama dengan halaman sekarang (jika param current dikirim)
+    // Hindari menampilkan artikel yang sedang dibuka (jika param current dipasang)
     var list = entries.filter(function(it){
       var link = getLink(it).replace(/\/+$/,'');
       return !current || link !== current;
@@ -65,19 +87,22 @@
 
     if(!list.length){ wrap.innerHTML = "<div>Tidak ada artikel terkait.</div>"; return; }
 
-    var html = list.map(function(it){
+    var html = '<div class="grid">' + list.map(function(it){
       var link = esc(getLink(it));
       var ttl  = esc(it.title && it.title.$t);
       var th   = esc(getThumb(it));
-      var sum  = it.summary && it.summary.$t ? truncate(stripTags(it.summary.$t), 120) : "";
-      return '<article class="rel-item">'
-           +   '<a class="rel-thumb" href="'+link+'" target="_blank" rel="noopener"><img src="'+th+'" alt="'+ttl+'"></a>'
-           +   '<div class="rel-meta">'
-           +     '<a class="rel-title" href="'+link+'" target="_blank" rel="noopener">'+ttl+'</a>'
-           +     (sum ? '<div class="rel-snippet">'+esc(sum)+'</div>' : '')
+      var sumRaw = it.summary && it.summary.$t ? stripTags(it.summary.$t) : "";
+      var sum  = esc(truncate(sumRaw, 150));
+      return '<article class="card">'
+           +   '<a class="thumb" href="'+link+'" target="_blank" rel="noopener">'
+           +     '<img loading="lazy" src="'+th+'" alt="'+ttl+'">'
+           +   '</a>'
+           +   '<div class="meta">'
+           +     '<a class="title" href="'+link+'" target="_blank" rel="noopener">'+ttl+'</a>'
+           +     (sum ? '<div class="snippet">'+sum+'</div>' : '')
            +   '</div>'
            + '</article>';
-    }).join("");
+    }).join('') + '</div>';
 
     wrap.innerHTML = html;
   };
